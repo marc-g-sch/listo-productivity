@@ -18,6 +18,24 @@ body {
   background: rgba(71, 85, 105, 0.8);
 }
 
+/* Rich text contentEditable placeholder */
+[data-placeholder]:empty::before {
+  content: attr(data-placeholder);
+  pointer-events: none;
+  color: #cbd5e1;
+}
+
+/* Rich text formatting styles */
+.rich-text b, .rich-text strong { font-weight: 700; }
+.rich-text i, .rich-text em { font-style: italic; }
+.rich-text u { text-decoration: underline; }
+
+/* Drag-over highlight for todo columns */
+.drag-over-column {
+  background: rgba(99, 102, 241, 0.06) !important;
+  border-color: rgba(99, 102, 241, 0.3) !important;
+}
+
 @keyframes confetti {
   0% { transform: translateY(0) rotate(0deg); opacity: 1; }
   100% { transform: translateY(600px) rotate(720deg); opacity: 0; }

@@ -1,46 +1,40 @@
 import { GoogleGenAI } from '@google/genai';
-import type { AiRating, DayData, Quote } from '../types';
-import { DEFAULT_AI_RATING_PROMPT, QUOTE_GENERATION_PROMPT } from '../constants';
+import type { AiRating, DayData } from '../types';
+import { DEFAULT_AI_RATING_PROMPT } from '../constants';
 
 const apiKey = import.meta.env.VITE_GEMINI_API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
-export const generateDailyQuote = async (): Promise<Quote | null> => {
-  if (!apiKey) return null;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: QUOTE_GENERATION_PROMPT,
-      config: { responseMimeType: 'application/json' },
-    });
-    const text = response.text;
-    if (!text) return null;
-    return JSON.parse(text) as Quote;
-  } catch {
-    return null;
-  }
-};
+// Strip HTML tags for sending to AI (we store rich HTML in todo.text)
+const stripHtml = (html: string) => html.replace(/<[^>]*>/g, '').trim();
 
 export const generateDayRating = async (dayData: DayData): Promise<AiRating | null> => {
   if (!apiKey) return null;
+
+  const workTodos = dayData.todos.filter(t => t.category === 'work');
+  const personalTodos = dayData.todos.filter(t => t.category === 'personal');
   const todoListText = dayData.todos
-    .map(t => `- ${t.text} (${t.completed ? 'Done' : 'Open'})`)
+    .map(t => `- [${t.category}] ${stripHtml(t.text)} (${t.completed ? 'Done' : 'Open'})`)
     .join('\n');
 
   const prompt = `
-    ${DEFAULT_AI_RATING_PROMPT}
+${DEFAULT_AI_RATING_PROMPT}
 
-    Day data:
-    - Daily Focus: "${dayData.focus}"
-    - Focus achieved: ${dayData.reflection?.focusAchieved ? 'Yes' : 'No'}
-    - Habits: ${dayData.habits.filter(h => h.completed).length} of ${dayData.habits.length} done.
+--- DAY DATA ---
+Daily Focus: "${stripHtml(dayData.focus)}"
+Focus achieved: ${dayData.reflection?.focusAchieved ? 'Yes' : 'No'}
+Habits done: ${dayData.habits.filter(h => h.completed).length} / ${dayData.habits.length}
+Work tasks: ${workTodos.filter(t => t.completed).length} / ${workTodos.length} done
+Personal tasks: ${personalTodos.filter(t => t.completed).length} / ${personalTodos.length} done
 
-    TODO LIST (please analyze feasibility/size):
-    ${todoListText}
+FULL TODO LIST:
+${todoListText || '(no tasks)'}
 
-    Notes: "${dayData.notes}"
-    Biggest win: "${dayData.reflection?.biggestWin}"
-  `;
+Notes: "${stripHtml(dayData.notes)}"
+Biggest win: "${dayData.reflection?.biggestWin || '(not filled in)'}"
+Better tomorrow: "${dayData.reflection?.betterTomorrow || '(not filled in)'}"
+Self-rating: ${dayData.reflection?.selfRating || 'none'}
+`;
 
   try {
     const response = await ai.models.generateContent({
@@ -50,31 +44,10 @@ export const generateDayRating = async (dayData: DayData): Promise<AiRating | nu
     });
     const text = response.text;
     if (!text) return null;
-    return JSON.parse(text) as AiRating;
+    const parsed = JSON.parse(text) as AiRating;
+    parsed.score = Math.max(1, Math.min(10, Math.round(parsed.score ?? 5)));
+    return parsed;
   } catch {
     return null;
-  }
-};
-
-export const getStoicChatResponse = async (userMessage: string, quote: Quote): Promise<string> => {
-  if (!apiKey) return "I can't respond right now (no API key configured).";
-  const prompt = `
-    You are a pragmatic coach.
-    Today's quote was: "${quote.text}" by ${quote.author}.
-    Explanation: "${quote.explanation}".
-
-    The user asks: "${userMessage}"
-
-    Respond briefly, motivating and action-oriented in English.
-    No long philosophical treatises. Focus on practical everyday implementation.
-  `;
-  try {
-    const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
-      contents: prompt,
-    });
-    return response.text || "Sorry, I couldn't find a response.";
-  } catch {
-    return 'An error occurred.';
   }
 };

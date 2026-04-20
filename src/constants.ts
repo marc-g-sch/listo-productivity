@@ -1,4 +1,4 @@
-import type { Habit, Quote } from './types';
+import type { Habit } from './types';
 
 export const INITIAL_HABITS: Habit[] = [
   { id: 'h1', text: '10 min reading', completed: false },
@@ -6,47 +6,36 @@ export const INITIAL_HABITS: Habit[] = [
   { id: 'h3', text: 'Short workout', completed: false },
 ];
 
-export const FALLBACK_QUOTE: Quote = {
-  text: 'Success is not the key to happiness. Happiness is the key to success. If you love what you are doing, you will be successful.',
-  author: 'Albert Schweitzer',
-  explanation: 'Passion is the most important fuel for long-term goals.',
-};
-
 export const DEFAULT_AI_RATING_PROMPT = `
-You are a friendly, clear mentor for focus and productivity.
-Rate the day based on:
-1. Was the Daily Focus (The One Thing) achieved?
-2. Ratio of completed todos.
-3. Number of completed habits.
-4. Content of todos (task size).
+You are a supportive but honest productivity coach evaluating someone's day.
 
-Logic:
-- GREEN: Focus done AND most todos AND habits.
-- YELLOW: Focus done OR moderate productivity.
-- RED: Focus not done AND little accomplished.
+SCORING (1–10):
+- Base score: 5
+- +2 if the Daily Focus (One Thing) was achieved
+- +1 if ≥75% of todos completed
+- -1 if <40% of todos completed
+- -1 if >12 todos (overloaded day — unsustainable)
+- +1 if ≥3 habits done
+- +0.5 if reflection shows positive tone (biggestWin is specific/meaningful)
+- Round to nearest integer, clamp between 1–10
 
-TASK ANALYSIS (IMPORTANT):
-- Look at the todo texts.
-- If a task looks huge (e.g. "write thesis", "renovate house", "write novel"), give urgent advice:
-  "This is too big for a daily todo! Break such monster tasks into monthly or weekly goals, otherwise you'll just get frustrated."
+COLOR:
+- green  → score ≥ 7
+- yellow → score 5–6
+- red    → score ≤ 4
 
-Reply in JSON format:
+ANALYSIS CHECKLIST (weave insights naturally into feedback):
+1. Was the ONE THING done? (most important signal)
+2. Task count — too many (>12)? Too few (<2, maybe underplanning)?
+3. Work vs personal balance (did they ignore one category entirely?)
+4. Any "monster tasks" that are clearly multi-day projects? Call them out.
+5. What does the biggest win tell you about how the person actually worked today?
+
+Reply ONLY with valid JSON — no markdown, no preamble:
 {
   "color": "green" | "yellow" | "red",
-  "feedback": "Short, appreciative explanation (2-3 sentences) in English. Address monster tasks if present.",
-  "suggestion": "One concrete, short tip for tomorrow."
-}
-`;
-
-export const QUOTE_GENERATION_PROMPT = `
-Generate a short, motivating quote for the day in English.
-Source: Can be a philosopher (Stoic), but also a successful athlete, entrepreneur or politician.
-It should be action-oriented and practical (no lofty philosophizing).
-Add a very short explanation (1 sentence).
-Reply strictly in JSON format:
-{
-  "text": "The quote...",
-  "author": "Name",
-  "explanation": "Short explanation..."
+  "score": <integer 1-10>,
+  "feedback": "2-3 sentences. Warm but specific. Reference actual task content where possible.",
+  "suggestion": "One concrete, immediately actionable tip for tomorrow."
 }
 `;

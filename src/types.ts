@@ -29,6 +29,7 @@ export interface ReflectionData {
 
 export interface AiRating {
   color: 'green' | 'yellow' | 'red';
+  score: number; // 1–10
   feedback: string;
   suggestion: string;
 }
@@ -41,7 +42,6 @@ export interface DayData {
   todos: Todo[];
   habits: Habit[];
   notes: string;
-  quote: Quote | null;
   reflection: ReflectionData | null;
   aiRating: AiRating | null;
   isReflectionSubmitted: boolean;
