@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+body {
+  font-family: 'Outfit', sans-serif;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 116, 139, 0.5);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(71, 85, 105, 0.8);
+}
+
+@keyframes confetti {
+  0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(600px) rotate(720deg); opacity: 0; }
+}
+@keyframes rocket {
+  0% { transform: translate(0, 0) rotate(45deg); opacity: 0; scale: 0.5; }
+  20% { opacity: 1; scale: 1; }
+  100% { transform: translate(100vw, -100vh) rotate(45deg); opacity: 0; }
+}
+.animate-confetti { animation: confetti 1.5s ease-out forwards; }
+.animate-rocket { animation: rocket 2s ease-in forwards; }
