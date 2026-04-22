@@ -1,20 +1,15 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import {
   CheckCircle2, Trash2, X, Menu, Plus,
-  Sparkles, Edit2, Save, Moon, Check, Loader2, LogOut,
+  Sparkles, Edit2, Save, Moon, Check, Loader2,
   GripVertical, CornerDownRight, LayoutGrid, CalendarDays,
-  PlayCircle, AlertTriangle, Copy,
+  PlayCircle,
 } from 'lucide-react';
 import { type DayData, type Todo, type ReflectionData, type Habit, ViewMode, type LongTermPlan, type PlanItem } from './types';
 import { INITIAL_HABITS } from './constants';
 import { generateDayRating } from './services/geminiService';
 import { format, isSameDay, parseISO, addDays, subDays } from 'date-fns';
-import { auth, googleProvider } from './firebaseConfig';
-import { signInWithPopup, signOut, onAuthStateChanged, type User as FirebaseUser } from 'firebase/auth';
-import {
-  saveDayToCloud, getDayFromCloud, getHistoryFromCloud,
-  savePlanToCloud, getPlanFromCloud,
-} from './services/firestoreService';
+import { saveDay, getDay, getHistory, savePlan, getPlan } from './services/localStorageService';
 
 // ─── Rich Text Editor ─────────────────────────────────────────────────────────
 
@@ -170,18 +165,12 @@ const ProgressFloater: React.FC<{ progress: number }> = ({ progress }) => {
 
 // ─── Main App ─────────────────────────────────────────────────────────────────
 
-type GuestUser = { uid: string; displayName: string };
-
 export default function App() {
-  const [user, setUser] = useState<FirebaseUser | GuestUser | null>(null);
-  const [isAuthLoading, setIsAuthLoading] = useState(true);
-  const [authErrorDomain, setAuthErrorDomain] = useState<string | null>(null);
-
   const [currentDate, setCurrentDate] = useState(new Date());
   const [viewMode, setViewMode] = useState<ViewMode>(ViewMode.DAY);
   const [history, setHistory] = useState<DayData[]>([]);
   const [todayData, setTodayData] = useState<DayData | null>(null);
-  const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isLoadingData] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   const [monthlyPlan, setMonthlyPlan] = useState<LongTermPlan | null>(null);
@@ -208,102 +197,77 @@ export default function App() {
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // ── Auth ──
-
-  const handleLogin = async () => {
-    setAuthErrorDomain(null);
-    try { await signInWithPopup(auth, googleProvider); }
-    catch (e: unknown) { if ((e as { code?: string }).code === 'auth/unauthorized-domain') setAuthErrorDomain(window.location.hostname); }
-  };
-  const handleGuestLogin = () => setUser({ uid: 'guest', displayName: 'Guest' });
-  const handleLogout = async () => { await signOut(auth); setUser(null); };
-
-  useEffect(() => {
-    if (user && (user as GuestUser).uid === 'guest') { setIsAuthLoading(false); return; }
-    return onAuthStateChanged(auth, u => { setUser(u); setIsAuthLoading(false); });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   // ── Data Loading ──
 
   useEffect(() => {
-    if (!user) return;
-    setIsLoadingData(true);
-    getHistoryFromCloud(user.uid).then(data => {
-      setHistory(data);
-      setIsLoadingData(false);
-      const yesterdayId = format(subDays(new Date(), 1), 'yyyy-MM-dd');
-      const yesterday = data.find(d => d.id === yesterdayId);
-      if (yesterday && !yesterday.isReflectionSubmitted) { setMorningReviewData(yesterday); setShowMorningReview(true); }
-    });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+    const data = getHistory();
+    setHistory(data);
+    const yesterdayId = format(subDays(new Date(), 1), 'yyyy-MM-dd');
+    const yesterday = data.find(d => d.id === yesterdayId);
+    if (yesterday && !yesterday.isReflectionSubmitted) { setMorningReviewData(yesterday); setShowMorningReview(true); }
+  }, []);
 
   useEffect(() => {
-    if (!user) return;
     const dateStr = format(currentDate, 'yyyy-MM-dd');
     const cached = history.find(d => d.id === dateStr);
     if (cached) { setTodayData(cached); return; }
-    getDayFromCloud(user.uid, dateStr).then(cloud => {
-      if (cloud) {
-        setTodayData(cloud);
-        setHistory(prev => prev.find(d => d.id === cloud.id) ? prev : [...prev, cloud].sort((a, b) => b.id.localeCompare(a.id)));
-      } else {
-        const recent = [...history].sort((a, b) => b.id.localeCompare(a.id))[0];
-        const habits = recent ? recent.habits.map((h: Habit) => ({ ...h, completed: false })) : INITIAL_HABITS;
-        setTodayData({ id: dateStr, date: format(currentDate, 'EEEE, MMMM d, yyyy'), focus: '', focusCompleted: false, todos: [], habits, notes: '', reflection: null, aiRating: null, isReflectionSubmitted: false });
-      }
-    });
+    const stored = getDay(dateStr);
+    if (stored) {
+      setTodayData(stored);
+      setHistory(prev => prev.find(d => d.id === stored.id) ? prev : [...prev, stored].sort((a, b) => b.id.localeCompare(a.id)));
+    } else {
+      const recent = [...history].sort((a, b) => b.id.localeCompare(a.id))[0];
+      const habits = recent ? recent.habits.map((h: Habit) => ({ ...h, completed: false })) : INITIAL_HABITS;
+      setTodayData({ id: dateStr, date: format(currentDate, 'EEEE, MMMM d, yyyy'), focus: '', focusCompleted: false, todos: [], habits, notes: '', reflection: null, aiRating: null, isReflectionSubmitted: false });
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDate, user]);
+  }, [currentDate]);
 
   useEffect(() => {
-    if (!user) return;
     if (viewMode === ViewMode.MONTH) {
       const key = `month-${format(currentDate, 'yyyy-MM')}`;
-      getPlanFromCloud(user.uid, key).then(p => setMonthlyPlan(p || { id: key, title: format(currentDate, 'MMMM yyyy'), oneThing: '', supportingGoals: [], notes: '' }));
+      const p = getPlan(key);
+      setMonthlyPlan(p || { id: key, title: format(currentDate, 'MMMM yyyy'), oneThing: '', supportingGoals: [], notes: '' });
     }
     if (viewMode === ViewMode.YEAR) {
       const key = `year-${format(currentDate, 'yyyy')}`;
-      getPlanFromCloud(user.uid, key).then(p => setYearlyPlan(p || { id: key, title: format(currentDate, 'yyyy'), oneThing: '', supportingGoals: [], notes: '', quarters: { q1: '', q2: '', q3: '', q4: '' } }));
+      const p = getPlan(key);
+      setYearlyPlan(p || { id: key, title: format(currentDate, 'yyyy'), oneThing: '', supportingGoals: [], notes: '', quarters: { q1: '', q2: '', q3: '', q4: '' } });
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentDate, viewMode, user]);
+  }, [currentDate, viewMode]);
 
   // ── Updaters ──
 
   const updateTodayData = (updates: Partial<DayData>) => {
-    if (!todayData || !user) return;
+    if (!todayData) return;
     const updated = { ...todayData, ...updates };
     setTodayData(updated);
     setHistory(prev => prev.find(d => d.id === updated.id) ? prev.map(d => d.id === updated.id ? updated : d).sort((a, b) => b.id.localeCompare(a.id)) : [...prev, updated].sort((a, b) => b.id.localeCompare(a.id)));
     setIsSaving(true);
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => { await saveDayToCloud(user.uid, updated); setIsSaving(false); }, 1000);
+    saveTimeoutRef.current = setTimeout(() => { saveDay(updated); setIsSaving(false); }, 500);
   };
 
-  const updateArbitraryDay = async (day: DayData) => {
-    if (!user) return;
-    await saveDayToCloud(user.uid, day);
+  const updateArbitraryDay = (day: DayData) => {
+    saveDay(day);
     setHistory(prev => prev.map(d => d.id === day.id ? day : d).sort((a, b) => b.id.localeCompare(a.id)));
   };
 
   const updateMonthlyPlan = (updates: Partial<LongTermPlan>) => {
-    if (!monthlyPlan || !user) return;
+    if (!monthlyPlan) return;
     const updated = { ...monthlyPlan, ...updates };
     setMonthlyPlan(updated);
-    setIsSaving(true);
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => { await savePlanToCloud(user.uid, updated); setIsSaving(false); }, 1000);
+    saveTimeoutRef.current = setTimeout(() => { savePlan(updated); }, 500);
   };
 
   const updateYearlyPlan = (updates: Partial<LongTermPlan>) => {
-    if (!yearlyPlan || !user) return;
+    if (!yearlyPlan) return;
     const updated = { ...yearlyPlan, ...updates };
     setYearlyPlan(updated);
-    setIsSaving(true);
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => { await savePlanToCloud(user.uid, updated); setIsSaving(false); }, 1000);
+    saveTimeoutRef.current = setTimeout(() => { savePlan(updated); }, 500);
   };
 
   // ── Milestones ──
@@ -419,28 +383,28 @@ export default function App() {
     setReflectionStep(todayData.todos.filter(t => !t.completed).length > 0 ? 'open-todos' : 'form');
   };
 
-  const handleMorningReviewAction = async (action: 'move' | 'discard') => {
-    if (!morningReviewData || !user) return;
+  const handleMorningReviewAction = (action: 'move' | 'discard') => {
+    if (!morningReviewData) return;
     if (action === 'move' && todayData) {
       const open = morningReviewData.todos.filter(t => !t.completed);
       const moved = open.map(t => ({ ...t, id: Date.now().toString() + Math.random().toString().slice(2, 5) }));
       const updated = { ...todayData, todos: [...todayData.todos, ...moved] };
-      setTodayData(updated); await saveDayToCloud(user.uid, updated);
+      setTodayData(updated); saveDay(updated);
     }
-    await updateArbitraryDay({ ...morningReviewData, isReflectionSubmitted: true, aiRating: { color: 'yellow', score: 5, feedback: 'Day closed the next morning.', suggestion: 'Start fresh today!' } });
+    updateArbitraryDay({ ...morningReviewData, isReflectionSubmitted: true, aiRating: { color: 'yellow', score: 5, feedback: 'Day closed the next morning.', suggestion: 'Start fresh today!' } });
     setShowMorningReview(false);
   };
 
-  const handleMoveTodosToTomorrow = async () => {
-    if (!todayData || !user) return;
+  const handleMoveTodosToTomorrow = () => {
+    if (!todayData) return;
     const open = todayData.todos.filter(t => !t.completed);
     if (open.length === 0) { setReflectionStep('form'); return; }
     const tomorrow = addDays(currentDate, 1);
     const tId = format(tomorrow, 'yyyy-MM-dd');
-    let tData = await getDayFromCloud(user.uid, tId);
+    let tData = getDay(tId);
     if (!tData) tData = { id: tId, date: format(tomorrow, 'EEEE, MMMM d, yyyy'), focus: '', focusCompleted: false, todos: [], habits: todayData.habits.map(h => ({ ...h, completed: false })), notes: '', reflection: null, aiRating: null, isReflectionSubmitted: false };
     tData.todos = [...tData.todos, ...open.map(t => ({ ...t, id: Date.now().toString() + Math.random().toString().slice(2, 5) }))];
-    await saveDayToCloud(user.uid, tData);
+    saveDay(tData);
     updateTodayData({ todos: todayData.todos.filter(t => t.completed) });
     setReflectionStep('form');
   };
@@ -454,7 +418,7 @@ export default function App() {
     const withR = { ...todayData, reflection };
     const aiRating = await generateDayRating(withR);
     const final = { ...withR, aiRating: aiRating || { color: 'yellow' as const, score: 5, feedback: 'Day saved.', suggestion: 'Tomorrow is a new day!' }, isReflectionSubmitted: true };
-    setTodayData(final); await saveDayToCloud(user!.uid, final);
+    setTodayData(final); saveDay(final);
     setHistory(prev => prev.map(d => d.id === final.id ? final : d));
     setIsGeneratingRating(false); setReflectionStep('rating');
   };
@@ -463,6 +427,7 @@ export default function App() {
 
   const isToday = isSameDay(currentDate, new Date());
   const isReadOnly = viewMode === ViewMode.DAY && !isToday && !!todayData?.isReflectionSubmitted;
+
 
   const calcProgress = (data: DayData | null = todayData) => {
     if (!data) return 0;
@@ -607,48 +572,6 @@ export default function App() {
 
   // ── Screens ────────────────────────────────────────────────────────────────
 
-  if (isAuthLoading) return (
-    <div className="min-h-screen bg-white flex items-center justify-center">
-      <Loader2 size={28} className="text-slate-300 animate-spin" />
-    </div>
-  );
-
-  if (!user) return (
-    <div className="min-h-screen bg-white flex items-center justify-center p-6">
-      <div className="w-full max-w-xs">
-        <div className="text-center mb-10">
-          <FocusLogo className="text-slate-900 mx-auto mb-4" />
-          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Listo</h1>
-          <p className="text-slate-400 text-xs mt-1">Your daily focus companion</p>
-        </div>
-        <div className="border border-gray-100 rounded-xl p-8 text-center">
-          <p className="text-slate-500 mb-6 text-sm leading-relaxed">To-Dos, Focus and Clarity.<br />No clutter. No distractions.</p>
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold text-sm hover:bg-slate-800 transition-all mb-3">
-            Sign in with Google
-          </button>
-          <div className="flex items-center gap-3 my-4"><div className="h-px bg-gray-100 flex-1" /><span className="text-gray-300 text-[10px]">OR</span><div className="h-px bg-gray-100 flex-1" /></div>
-          <button onClick={handleGuestLogin} className="w-full text-slate-500 border border-gray-100 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-all">
-            Try Demo — no login needed
-          </button>
-        </div>
-        {authErrorDomain && (
-          <div className="mt-5 p-5 bg-red-50 border border-red-200 rounded-2xl">
-            <div className="flex items-start gap-3">
-              <AlertTriangle className="text-red-500 shrink-0 mt-0.5" size={16} />
-              <div className="text-left">
-                <h3 className="text-red-800 font-bold text-sm mb-1">Preview Domain Blocked</h3>
-                <p className="text-red-600 text-xs mb-3">Add this domain to Firebase Auth › Authorized Domains:</p>
-                <div className="bg-white p-2 rounded text-xs font-mono flex items-center justify-between border border-red-100">
-                  <span className="truncate">{authErrorDomain}</span>
-                  <button onClick={() => navigator.clipboard.writeText(authErrorDomain)} className="ml-2 hover:text-red-600"><Copy size={12} /></button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
 
   // ── Main Layout ────────────────────────────────────────────────────────────
 
@@ -657,11 +580,11 @@ export default function App() {
       {showRocket && <RocketOverlay onComplete={() => setShowRocket(false)} />}
       {viewMode === ViewMode.DAY && todayData && <ProgressFloater progress={calcProgress()} />}
 
-      {/* Cloud sync badge */}
+      {/* Save badge */}
       <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-100">
         {isSaving
           ? <><Loader2 size={12} className="animate-spin text-slate-400" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saving…</span></>
-          : <><Check size={12} className="text-emerald-500" /><span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{(user as GuestUser)?.uid === 'guest' ? 'Local' : 'Cloud'}</span></>
+          : <><Check size={12} className="text-emerald-500" /><span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Saved</span></>
         }
       </div>
 
@@ -748,7 +671,7 @@ export default function App() {
             </div>
           </div>
 
-          <div className="pt-4 border-t border-gray-100 space-y-3">
+          <div className="pt-4 border-t border-gray-100">
             <div className="flex gap-1">
               {([ViewMode.DAY, ViewMode.MONTH, ViewMode.YEAR] as const).map(v => (
                 <button key={v} onClick={() => setViewMode(v)} className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === v ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-gray-50'}`}>
@@ -756,9 +679,6 @@ export default function App() {
                 </button>
               ))}
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-gray-300 hover:text-rose-500 transition-colors w-full px-1 py-1 text-sm">
-              <LogOut size={14} /><span>Sign out</span>
-            </button>
           </div>
         </div>
       </aside>
