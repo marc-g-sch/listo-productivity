@@ -4,6 +4,7 @@ export interface Todo {
   completed: boolean;
   category: 'work' | 'personal';
   indentLevel?: number;
+  priority?: 1 | 2 | 3; // 3 = top, 2 = medium, 1 = low
 }
 
 export interface Habit {
