@@ -107,7 +107,7 @@ const RichTextEditor: React.FC<{
 // ─── Micro-components ─────────────────────────────────────────────────────────
 
 const Card: React.FC<{ children: React.ReactNode; className?: string; onClick?: () => void }> = ({ children, className = '', onClick }) => (
-  <div onClick={onClick} className={`bg-white border border-slate-200 rounded-2xl p-8 ${className}`}>
+  <div onClick={onClick} className={`bg-white border border-gray-100 rounded-xl p-8 ${className}`}>
     {children}
   </div>
 );
@@ -156,17 +156,13 @@ const RocketOverlay: React.FC<{ onComplete: () => void }> = ({ onComplete }) => 
 const ProgressFloater: React.FC<{ progress: number }> = ({ progress }) => {
   const r = 18, c = 2 * Math.PI * r;
   return (
-    <div className="fixed bottom-6 left-6 z-[60] bg-white border border-slate-200 p-3 rounded-2xl shadow-sm flex items-center gap-3 hover:scale-105 transition-all cursor-default group">
+    <div className="fixed bottom-6 left-6 z-[60] bg-white border border-gray-100 p-3 rounded-xl flex items-center gap-3 cursor-default group">
       <div className="relative w-12 h-12 flex items-center justify-center">
         <svg className="transform -rotate-90 w-12 h-12">
-          <circle cx="24" cy="24" r={r} stroke="#E2E8F0" strokeWidth="4" fill="transparent" />
+          <circle cx="24" cy="24" r={r} stroke="#f1f5f9" strokeWidth="4" fill="transparent" />
           <circle cx="24" cy="24" r={r} stroke="#0f172a" strokeWidth="4" fill="transparent" strokeDasharray={c} strokeDashoffset={c - (progress / 100) * c} strokeLinecap="round" className="transition-all duration-1000 ease-out" />
         </svg>
         <span className="absolute text-[10px] font-bold text-slate-700">{Math.round(progress)}%</span>
-      </div>
-      <div className="w-0 overflow-hidden group-hover:w-auto transition-all duration-300 opacity-0 group-hover:opacity-100 whitespace-nowrap pr-1">
-        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Day Progress</div>
-        <div className="text-xs font-bold text-slate-900">Keep going!</div>
       </div>
     </div>
   );
@@ -326,6 +322,7 @@ export default function App() {
     const newId = Date.now().toString();
     updateTodayData({ todos: [...todayData.todos, { id: newId, text: input, completed: false, category: cat, indentLevel: 0 }] });
     cat === 'work' ? setWorkInput('') : setPersonalInput('');
+    setFocusNewTodoId(newId);
   };
 
   const addTodoAfter = (afterId: string, category: 'work' | 'personal') => {
@@ -526,7 +523,7 @@ export default function App() {
           <div className={`w-2 h-2 rounded-full ${a.dot}`} />
           <span className={`text-xs font-bold uppercase tracking-wide ${a.label}`}>{isWork ? 'Work' : 'Personal'}</span>
         </div>
-        <Card className={`flex-1 flex flex-col min-h-[300px] !p-4 transition-all ${isDragTarget ? 'drag-over-column' : ''}`}>
+        <Card className={`flex-1 flex flex-col min-h-[300px] !p-3 transition-all ${isDragTarget ? 'drag-over-column' : ''}`}>
           <div className="space-y-1 flex-1">
             {getTodos(category).map(todo => (
               <div
@@ -536,7 +533,7 @@ export default function App() {
                 onDragOver={e => handleDragOver(e, todo.id)}
                 onDrop={e => handleDrop(e, todo.id)}
                 onDragEnd={handleDragEnd}
-                className={`group flex items-start gap-2 p-2.5 rounded-xl border border-transparent hover:border-slate-200 hover:bg-slate-50 transition-all duration-150 relative ${draggedTodoId === todo.id ? 'opacity-30 scale-95' : ''}`}
+                className={`group flex items-start gap-2 p-2 rounded-lg border border-transparent hover:border-gray-100 hover:bg-gray-50 transition-all duration-150 relative ${draggedTodoId === todo.id ? 'opacity-30 scale-95' : ''}`}
                 style={{ marginLeft: `${(todo.indentLevel || 0) * 24}px` }}
               >
                 {/* Drag handle */}
@@ -572,7 +569,7 @@ export default function App() {
 
                 {/* Actions */}
                 {!isReadOnly && (
-                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity absolute right-2 top-2 bg-white rounded-lg p-0.5 shadow-sm border border-slate-100">
+                  <div className="opacity-0 group-hover:opacity-100 flex items-center gap-0.5 transition-opacity absolute right-2 top-2 bg-white rounded-lg p-0.5 border border-gray-100">
                     {(todo.indentLevel || 0) < 2 && (
                       <button onClick={() => addSubtask(todo.id)} title="Add subtask" className="p-1 text-slate-400 hover:text-indigo-600"><Plus size={10} /></button>
                     )}
@@ -585,7 +582,7 @@ export default function App() {
 
             {/* Add task input */}
             {!isReadOnly && (
-              <div className="mt-1 flex items-center gap-2.5 p-2.5 rounded-xl hover:bg-slate-50 border border-transparent hover:border-slate-200 transition-all">
+              <div className="mt-1 flex items-center gap-2.5 p-2 rounded-lg hover:bg-gray-50 border border-transparent hover:border-gray-100 transition-all">
                 <Plus size={15} className="text-slate-300 shrink-0" />
                 <input
                   className="flex-1 bg-transparent border-none outline-none text-sm font-medium text-slate-900 placeholder:text-slate-300"
@@ -617,18 +614,20 @@ export default function App() {
   );
 
   if (!user) return (
-    <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6">
-      <div className="w-full max-w-sm">
-        <div className="bg-white border border-slate-200 rounded-3xl p-10 text-center shadow-sm">
-          <div className="flex justify-center mb-5"><FocusLogo className="text-slate-900" /></div>
-          <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Listo</h1>
-          <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mb-8">Your daily focus companion</p>
-          <p className="text-slate-600 mb-8 text-sm leading-relaxed">Your daily app for <span className="text-slate-900 font-bold">To-Dos, Focus and Clarity</span>. No clutter. No distractions.</p>
-          <button onClick={handleLogin} className="w-full bg-slate-900 text-white py-3.5 rounded-xl font-bold text-sm hover:bg-slate-800 transition-all flex items-center justify-center gap-3 mb-4">
+    <div className="min-h-screen bg-white flex items-center justify-center p-6">
+      <div className="w-full max-w-xs">
+        <div className="text-center mb-10">
+          <FocusLogo className="text-slate-900 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Listo</h1>
+          <p className="text-slate-400 text-xs mt-1">Your daily focus companion</p>
+        </div>
+        <div className="border border-gray-100 rounded-xl p-8 text-center">
+          <p className="text-slate-500 mb-6 text-sm leading-relaxed">To-Dos, Focus and Clarity.<br />No clutter. No distractions.</p>
+          <button onClick={handleLogin} className="w-full bg-slate-900 text-white py-3 rounded-lg font-semibold text-sm hover:bg-slate-800 transition-all mb-3">
             Sign in with Google
           </button>
-          <div className="flex items-center gap-4 my-5"><div className="h-px bg-slate-200 flex-1" /><span className="text-slate-400 text-[10px] font-bold">OR</span><div className="h-px bg-slate-200 flex-1" /></div>
-          <button onClick={handleGuestLogin} className="w-full bg-white text-slate-600 border border-slate-200 py-3 rounded-xl font-bold text-sm hover:bg-slate-50 transition-all uppercase tracking-wide">
+          <div className="flex items-center gap-3 my-4"><div className="h-px bg-gray-100 flex-1" /><span className="text-gray-300 text-[10px]">OR</span><div className="h-px bg-gray-100 flex-1" /></div>
+          <button onClick={handleGuestLogin} className="w-full text-slate-500 border border-gray-100 py-2.5 rounded-lg font-medium text-sm hover:bg-gray-50 transition-all">
             Try Demo — no login needed
           </button>
         </div>
@@ -654,12 +653,12 @@ export default function App() {
   // ── Main Layout ────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen w-full bg-slate-50 font-sans text-slate-900 relative selection:bg-indigo-100 selection:text-indigo-900 pb-32">
+    <div className="min-h-screen w-full bg-white font-sans text-slate-900 relative selection:bg-indigo-100 selection:text-indigo-900 pb-32">
       {showRocket && <RocketOverlay onComplete={() => setShowRocket(false)} />}
       {viewMode === ViewMode.DAY && todayData && <ProgressFloater progress={calcProgress()} />}
 
       {/* Cloud sync badge */}
-      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-slate-200 shadow-sm">
+      <div className="fixed top-5 left-1/2 -translate-x-1/2 z-[60] flex items-center gap-1.5 bg-white px-3 py-1 rounded-full border border-gray-100">
         {isSaving
           ? <><Loader2 size={12} className="animate-spin text-slate-400" /><span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Saving…</span></>
           : <><Check size={12} className="text-emerald-500" /><span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{(user as GuestUser)?.uid === 'guest' ? 'Local' : 'Cloud'}</span></>
@@ -668,13 +667,13 @@ export default function App() {
 
       {/* Mobile sidebar toggle */}
       {!isSidebarOpen && (
-        <button onClick={() => setIsSidebarOpen(true)} className="fixed top-4 right-4 lg:hidden p-2.5 bg-white shadow-sm border border-slate-200 rounded-xl text-slate-600 z-50">
+        <button onClick={() => setIsSidebarOpen(true)} className="fixed top-4 right-4 lg:hidden p-2.5 bg-white border border-gray-100 rounded-lg text-slate-600 z-50">
           <Menu size={18} />
         </button>
       )}
 
       {/* ── RIGHT SIDEBAR ── */}
-      <aside className={`fixed top-0 right-0 h-full w-72 bg-white border-l border-slate-200 z-50 transform transition-transform duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 shadow-xl lg:shadow-none flex flex-col`}>
+      <aside className={`fixed top-0 right-0 h-full w-72 bg-white border-l border-gray-100 z-50 transform transition-transform duration-300 ease-out ${isSidebarOpen ? 'translate-x-0' : 'translate-x-full'} lg:translate-x-0 flex flex-col`}>
         <div className="p-6 h-full flex flex-col">
 
           <div className="flex items-center justify-between mb-8">
@@ -698,8 +697,8 @@ export default function App() {
               const bgCls = isActive
                 ? 'bg-slate-900 text-white'
                 : item.isPast
-                  ? 'bg-slate-100 text-slate-500 hover:bg-slate-200'
-                  : 'bg-blue-50 text-blue-700 hover:bg-blue-100 border border-blue-100';
+                  ? 'text-slate-400 hover:bg-gray-50'
+                  : 'text-slate-600 hover:bg-gray-50';
 
               const dateLabel = getRelativeLabel(item.offset) || format(item.date, 'EEE, MMM d');
 
@@ -709,27 +708,22 @@ export default function App() {
                     onClick={() => { setCurrentDate(parseISO(item.id)); setViewMode(ViewMode.DAY); setIsSidebarOpen(false); }}
                     className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-150 ${bgCls}`}
                   >
-                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white' : item.isPast ? 'bg-slate-300' : 'bg-blue-300'}`} />
+                    <div className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-white' : 'bg-gray-200'}`} />
                     <div className="flex-1 text-left min-w-0">
                       <div className={`text-xs font-bold truncate`}>{dateLabel}</div>
                       {taskCount > 0 && (
-                        <div className={`text-[10px] mt-0.5 ${isActive ? 'text-slate-400' : item.isPast ? 'text-slate-400' : 'text-blue-400'}`}>
+                        <div className={`text-[10px] mt-0.5 ${isActive ? 'text-slate-400' : 'text-gray-400'}`}>
                           {doneCount}/{taskCount} tasks · {pct}%
                         </div>
                       )}
                       {taskCount === 0 && (
-                        <div className={`text-[10px] mt-0.5 ${isActive ? 'text-slate-400' : item.isPast ? 'text-slate-400' : 'text-blue-400'}`}>
+                        <div className={`text-[10px] mt-0.5 ${isActive ? 'text-slate-400' : 'text-gray-400'}`}>
                           {item.isFuture ? 'Plan ahead' : 'No tasks'}
                         </div>
                       )}
                     </div>
                     {pct !== null && taskCount > 0 && (
-                      <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold ${
-                        isActive ? 'bg-white/10 text-white' :
-                        pct >= 80 ? 'bg-emerald-100 text-emerald-700' :
-                        pct >= 50 ? 'bg-amber-100 text-amber-700' :
-                        'bg-rose-100 text-rose-600'
-                      }`}>
+                      <div className={`shrink-0 text-[10px] font-medium ${isActive ? 'text-white/60' : 'text-gray-400'}`}>
                         {pct}%
                       </div>
                     )}
@@ -747,23 +741,23 @@ export default function App() {
               );
             })}
 
-            <div className="mt-3 px-3 py-2 rounded-xl bg-slate-50 border border-slate-200">
-              <div className="text-[10px] text-slate-400 font-medium leading-relaxed">
-                Planning horizon: <span className="font-bold text-slate-600">3 days</span>. For further ahead, use Month view.
+            <div className="mt-3 px-3 py-2">
+              <div className="text-[10px] text-gray-300 leading-relaxed">
+                Max planning horizon: 3 days. Use Month view for more.
               </div>
             </div>
           </div>
 
-          <div className="pt-4 border-t border-slate-100 space-y-3">
+          <div className="pt-4 border-t border-gray-100 space-y-3">
             <div className="flex gap-1">
               {([ViewMode.DAY, ViewMode.MONTH, ViewMode.YEAR] as const).map(v => (
-                <button key={v} onClick={() => setViewMode(v)} className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${viewMode === v ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900 hover:bg-slate-100'}`}>
+                <button key={v} onClick={() => setViewMode(v)} className={`flex-1 py-1.5 rounded-lg text-xs font-semibold transition-all ${viewMode === v ? 'bg-slate-900 text-white' : 'text-slate-400 hover:text-slate-700 hover:bg-gray-50'}`}>
                   {v === ViewMode.DAY ? 'Day' : v === ViewMode.MONTH ? 'Month' : 'Year'}
                 </button>
               ))}
             </div>
-            <button onClick={handleLogout} className="flex items-center gap-2 text-slate-400 hover:text-rose-600 transition-colors w-full px-1 py-1 rounded-lg hover:bg-rose-50 text-sm font-semibold">
-              <LogOut size={15} /><span>Sign out</span>
+            <button onClick={handleLogout} className="flex items-center gap-2 text-gray-300 hover:text-rose-500 transition-colors w-full px-1 py-1 text-sm">
+              <LogOut size={14} /><span>Sign out</span>
             </button>
           </div>
         </div>
@@ -774,11 +768,9 @@ export default function App() {
         <div className="max-w-3xl mx-auto px-5 py-10 md:px-10 md:py-12">
 
           {viewMode === ViewMode.DAY && (
-            <div className="mb-8 text-center">
-              <div className="inline-block px-3 py-1 rounded-full bg-white border border-slate-200 text-[10px] font-bold uppercase tracking-widest text-slate-500 mb-2">
-                {getRelativeLabel(isSameDay(currentDate, new Date()) ? 0 : currentDate > new Date() ? 1 : -1) || format(currentDate, 'EEEE')}
-              </div>
-              <h2 className="text-3xl font-bold text-slate-900 tracking-tight">{format(currentDate, 'MMMM d, yyyy')}</h2>
+            <div className="mb-8">
+              <p className="text-xs text-gray-400 mb-1">{getRelativeLabel(isSameDay(currentDate, new Date()) ? 0 : currentDate > new Date() ? 1 : -1) || format(currentDate, 'EEEE')}</p>
+              <h2 className="text-2xl font-bold text-slate-900 tracking-tight">{format(currentDate, 'MMMM d, yyyy')}</h2>
             </div>
           )}
 
@@ -789,13 +781,13 @@ export default function App() {
                 <h2 className="text-3xl font-bold text-slate-900">{monthlyPlan.title}</h2>
                 <p className="text-slate-400 font-medium mt-2 text-sm">Monthly Planning</p>
               </div>
-              <section className="bg-white border border-slate-200 rounded-2xl p-8 relative overflow-hidden">
+              <section className="bg-white border border-gray-100 rounded-xl p-8 relative overflow-hidden">
                 <div className="absolute top-0 left-0 w-full h-1 bg-slate-900" />
                 <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Theme of the month</h3>
                 <textarea value={monthlyPlan.oneThing} onChange={e => updateMonthlyPlan({ oneThing: e.target.value })} className="w-full bg-transparent text-2xl font-bold text-slate-800 placeholder:text-slate-300 outline-none resize-none leading-relaxed" placeholder="What is the focus for this month?" rows={2} />
               </section>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                <section className="bg-white border border-slate-200 rounded-2xl p-6 min-h-[400px] flex flex-col">
+                <section className="bg-white border border-gray-100 rounded-xl p-6 min-h-[400px] flex flex-col">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-2"><LayoutGrid size={14} /> Weekly Milestones</h3>
                   <div className="space-y-4 flex-1">
                     {monthlyPlan.supportingGoals.map(goal => (
@@ -808,7 +800,7 @@ export default function App() {
                     <button onClick={addMilestone} className="flex items-center gap-2 text-sm text-slate-400 font-bold mt-4 hover:text-slate-900"><Plus size={16} /> Add milestone</button>
                   </div>
                 </section>
-                <section className="bg-white border border-slate-200 rounded-2xl p-6 min-h-[400px]">
+                <section className="bg-white border border-gray-100 rounded-xl p-6 min-h-[400px]">
                   <h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-4">Brain dump / Notes</h3>
                   <textarea value={monthlyPlan.notes} onChange={e => updateMonthlyPlan({ notes: e.target.value })} className="w-full h-full bg-transparent resize-none outline-none text-sm leading-8 text-slate-600 placeholder:text-slate-300 pt-1 min-h-[300px]" placeholder="Thoughts, ideas, appointments..." />
                 </section>
@@ -829,7 +821,7 @@ export default function App() {
               </section>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {(['q1', 'q2', 'q3', 'q4'] as const).map((q, idx) => (
-                  <div key={q} className="bg-white border border-slate-200 p-6 rounded-2xl">
+                  <div key={q} className="bg-white border border-gray-100 p-6 rounded-xl">
                     <h3 className="text-base font-bold text-slate-900 mb-4 flex items-center justify-between">
                       <span>Q{idx + 1}</span>
                       <span className="text-xs font-normal text-slate-400 uppercase tracking-widest">{['Jan – Mar', 'Apr – Jun', 'Jul – Sep', 'Oct – Dec'][idx]}</span>
@@ -924,7 +916,7 @@ export default function App() {
 
                 <section className="flex flex-col">
                   <div className="mb-3 px-1"><h2 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Mindpad</h2></div>
-                  <div className="flex-1 bg-white border border-slate-200 rounded-2xl overflow-hidden flex flex-col min-h-[240px]">
+                  <div className="flex-1 bg-white border border-gray-100 rounded-xl overflow-hidden flex flex-col min-h-[240px]">
                     <div className="h-0.5 bg-amber-300 shrink-0" />
                     <textarea value={todayData.notes} onChange={e => updateTodayData({ notes: e.target.value })} disabled={isReadOnly} placeholder="Quick notes…" className="flex-1 p-5 bg-transparent resize-none border-none outline-none text-slate-700 placeholder:text-slate-300 text-sm leading-relaxed" />
                   </div>
@@ -965,8 +957,8 @@ export default function App() {
 
         {/* Close day button */}
         {viewMode === ViewMode.DAY && todayData && !todayData.isReflectionSubmitted && isToday && (
-          <div className="fixed bottom-0 left-0 lg:right-72 right-0 p-5 bg-gradient-to-t from-slate-50 to-transparent z-40 flex justify-center pointer-events-none">
-            <ButtonPrimary onClick={startReflection} className="pointer-events-auto shadow-lg hover:scale-105 !px-6 !py-3 !text-sm">
+          <div className="fixed bottom-0 left-0 lg:right-72 right-0 p-5 bg-white border-t border-gray-100 z-40 flex justify-center">
+            <ButtonPrimary onClick={startReflection} className="!px-6 !py-3 !text-sm">
               <Moon size={16} /> Close day & reflect
             </ButtonPrimary>
           </div>
@@ -975,15 +967,15 @@ export default function App() {
 
       {/* ── Morning Review Modal ── */}
       {showMorningReview && morningReviewData && (
-        <div className="fixed inset-0 z-[110] bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-[110] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md overflow-hidden border border-gray-100">
             <div className="p-7">
               <div className="text-center mb-5">
                 <div className="inline-block p-3 bg-amber-100 text-amber-600 rounded-full mb-3"><CalendarDays size={22} /></div>
                 <h2 className="text-xl font-bold text-slate-900">Good morning!</h2>
                 <p className="text-slate-400 text-sm mt-1">Yesterday's day isn't closed yet.</p>
               </div>
-              <div className="bg-slate-50 rounded-2xl p-4 mb-5 border border-slate-200 space-y-2.5">
+              <div className="bg-gray-50 rounded-xl p-4 mb-5 border border-gray-100 space-y-2.5">
                 <div className="flex items-center justify-between text-sm"><span className="text-slate-600">Focus achieved?</span>{morningReviewData.focusCompleted ? <span className="text-emerald-600 font-bold flex items-center gap-1"><Check size={13} /> Yes</span> : <span className="text-slate-400 font-bold">No</span>}</div>
                 <div className="flex items-center justify-between text-sm"><span className="text-slate-600">Open tasks</span><span className="font-bold text-slate-900">{morningReviewData.todos.filter(t => !t.completed).length}</span></div>
               </div>
@@ -1005,14 +997,14 @@ export default function App() {
 
       {/* ── Reflection Modal ── */}
       {reflectionStep !== 'intro' && reflectionStep !== 'rating' && !todayData?.isReflectionSubmitted && (
-        <div className="fixed inset-0 z-[100] bg-black/30 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-xl w-full max-w-md overflow-hidden border border-slate-200">
+        <div className="fixed inset-0 z-[100] bg-black/20 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-xl w-full max-w-md overflow-hidden border border-gray-100">
 
             {reflectionStep === 'open-todos' && (
               <div className="p-7">
                 <h2 className="text-xl font-bold text-slate-900 mb-1 text-center">Wrapping up</h2>
                 <p className="text-slate-400 text-center mb-5 text-sm">You have open tasks. What should happen to them?</p>
-                <div className="bg-slate-50 rounded-xl p-3 mb-5 space-y-1.5 max-h-[180px] overflow-y-auto border border-slate-200">
+                <div className="bg-gray-50 rounded-xl p-3 mb-5 space-y-1.5 max-h-[180px] overflow-y-auto border border-gray-100">
                   {todayData?.todos.filter(t => !t.completed).map(t => (
                     <div key={t.id} className="flex items-center gap-2.5 text-sm text-slate-700 bg-white p-2 rounded-lg border border-slate-100">
                       <div className="w-1.5 h-1.5 rounded-full bg-slate-300 shrink-0" />
@@ -1047,7 +1039,7 @@ export default function App() {
                   <p className="text-slate-400 text-xs font-bold uppercase tracking-widest mt-1">{todayData?.date}</p>
                 </div>
                 <div className="space-y-5">
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                  <div className="bg-gray-50 p-4 rounded-xl border border-gray-100">
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">Did you achieve your One Thing?</label>
                     <div className="flex gap-2">
                       <button onClick={() => setTempReflection({ ...tempReflection, focusAchieved: true })} className={`flex-1 py-2.5 rounded-lg font-bold text-sm transition-all border ${tempReflection.focusAchieved === true ? 'bg-emerald-500 text-white border-emerald-500' : 'bg-white text-slate-500 border-slate-200 hover:border-slate-300'}`}>Yes!</button>
@@ -1056,11 +1048,11 @@ export default function App() {
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">Biggest win today?</label>
-                    <textarea value={tempReflection.biggestWin || ''} onChange={e => setTempReflection({ ...tempReflection, biggestWin: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-slate-400 outline-none h-16 resize-none" placeholder="What went really well?" />
+                    <textarea value={tempReflection.biggestWin || ''} onChange={e => setTempReflection({ ...tempReflection, biggestWin: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm focus:border-slate-300 outline-none h-16 resize-none" placeholder="What went really well?" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-1.5">One thing to do better tomorrow?</label>
-                    <textarea value={tempReflection.betterTomorrow || ''} onChange={e => setTempReflection({ ...tempReflection, betterTomorrow: e.target.value })} className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3 text-sm focus:border-slate-400 outline-none h-16 resize-none" placeholder="One concrete intention…" />
+                    <textarea value={tempReflection.betterTomorrow || ''} onChange={e => setTempReflection({ ...tempReflection, betterTomorrow: e.target.value })} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-3 text-sm focus:border-slate-300 outline-none h-16 resize-none" placeholder="One concrete intention…" />
                   </div>
                   <div>
                     <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-widest mb-2.5">How was the day?</label>
